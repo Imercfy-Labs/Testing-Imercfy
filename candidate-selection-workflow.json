@@ -1,0 +1,350 @@
+{
+  "name": "Candidate Selection Workflow",
+  "nodes": [
+    {
+      "id": "googleSheetsTrigger",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "parameters": {
+        "sheetId": "{{$env.GOOGLE_SHEET_ID}}",
+        "range": "A:Z",
+        "event": "rowAdded"
+      },
+      "position": [100, 200]
+    },
+    {
+      "id": "setJobRequirements",
+      "name": "Set Job Requirements",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Set job requirements based on the job position\nconst jobPosition = $input.first().json.jobPosition;\n\nlet requirements = {};\nif (jobPosition === 'Software Engineer') {\n  requirements = {\n    skills: ['JavaScript', 'React', 'Node.js'],\n    experience: '3+ years',\n    education: 'Bachelor in Computer Science or equivalent'\n  };\n} else if (jobPosition === 'Data Scientist') {\n  requirements = {\n    skills: ['Python', 'Machine Learning', 'SQL'],\n    experience: '2+ years',\n    education: 'Master in Data Science or equivalent'\n  };\n}\n\n$input.first().json.requirements = requirements;\nreturn $input;"
+      },
+      "position": [300, 200]
+    },
+    {
+      "id": "initializeVariables",
+      "name": "Initialize Variables",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Initialize variables for candidate evaluation\nconst item = $input.first().json;\nitem.candidateScore = 0;\nitem.evaluationResults = [];\nitem.processedCandidates = 0;\nitem.totalCandidates = item.candidates ? item.candidates.length : 0;\n\nreturn $input;"
+      },
+      "position": [500, 200]
+    },
+    {
+      "id": "loopThroughCandidate",
+      "name": "Loop Through Candidate",
+      "type": "n8n-nodes-base.splitInBatches",
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": true
+        }
+      },
+      "position": [700, 200]
+    },
+    {
+      "id": "prepareCandidateData",
+      "name": "Prepare Candidate Data",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Prepare candidate data for evaluation\nconst item = $input.first().json;\nconst candidateIndex = item.processedCandidates;\nconst candidate = item.candidates[candidateIndex];\n\nitem.currentCandidate = candidate;\nitem.processedCandidates += 1;\n\nreturn $input;"
+      },
+      "position": [900, 200]
+    },
+    {
+      "id": "googleDrive",
+      "name": "Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.currentCandidate.resumeFileId }}"
+      },
+      "position": [1100, 200]
+    },
+    {
+      "id": "resumeExtraction",
+      "name": "Resume Extraction",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Extract text from resume\nconst item = $input.first().json;\nitem.resumeText = item.data.toString('utf-8');\nreturn $input;"
+      },
+      "position": [1300, 200]
+    },
+    {
+      "id": "googleGeminiEvaluateCandidate",
+      "name": "Google Gemini - EvaluateParse Candidate",
+      "type": "n8n-nodes-base.googleGemini",
+      "parameters": {
+        "model": "gemini-pro",
+        "prompt": "You are an expert HR assistant. Analyze the following resume and evaluate the candidate against the job requirements.\n\nJob Requirements:\n{{ $json.requirements | json }}\n\nResume Text:\n{{ $json.resumeText }}\n\nProvide a structured evaluation with the following:\n1. Skills Match (score out of 10)\n2. Experience Match (score out of 10)\n3. Education Match (score out of 10)\n4. Overall Fit (score out of 10)\n5. Strengths\n6. Areas for Improvement\n7. Final Recommendation (Hire, Consider, Reject)\n\nReturn the response as a valid JSON object with these fields.",
+        "options": {
+          "temperature": 0.2,
+          "responseFormat": "json"
+        }
+      },
+      "position": [1500, 200]
+    },
+    {
+      "id": "evaluationJSON",
+      "name": "Evaluation JSON",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Parse evaluation results\nconst item = $input.first().json;\nconst evaluation = JSON.parse(item.response);\n\nitem.currentCandidate.evaluation = evaluation;\nitem.evaluationResults.push({\n  candidateName: item.currentCandidate.name,\n  scores: {\n    skills: evaluation.skillsMatch,\n    experience: evaluation.experienceMatch,\n    education: evaluation.educationMatch,\n    overall: evaluation.overallFit\n  },\n  recommendation: evaluation.finalRecommendation\n});\n\nreturn $input;"
+      },
+      "position": [1700, 200]
+    },
+    {
+      "id": "addToEvaluations",
+      "name": "Add To Evaluations",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Add current evaluation to the list\nreturn $input;"
+      },
+      "position": [1900, 200]
+    },
+    {
+      "id": "isProcessingComplete",
+      "name": "Is Processing Complete?",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.processedCandidates }}",
+              "operation": "equal",
+              "value2": "={{ $json.totalCandidates }}"
+            }
+          ]
+        }
+      },
+      "position": [2100, 200]
+    },
+    {
+      "id": "continueLoop",
+      "name": "Continue Loop",
+      "type": "n8n-nodes-base.noOp",
+      "position": [2100, 50]
+    },
+    {
+      "id": "csvExport",
+      "name": "CSV Export",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Prepare data for CSV export\nconst item = $input.first().json;\nconst csvData = item.evaluationResults.map(result => ({\n  'Candidate Name': result.candidateName,\n  'Skills Score': result.scores.skills,\n  'Experience Score': result.scores.experience,\n  'Education Score': result.scores.education,\n  'Overall Score': result.scores.overall,\n  'Recommendation': result.recommendation\n}));\n\nitem.csvData = csvData;\nreturn $input;"
+      },
+      "position": [2100, 350]
+    },
+    {
+      "id": "saveFile",
+      "name": "Save File",
+      "type": "n8n-nodes-base.googleDrive",
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ 'Candidate_Evaluation_' + $now.format('YYYY-MM-DD') + '.csv' }}",
+        "folderId": "{{$env.GOOGLE_DRIVE_FOLDER_ID}}",
+        "options": {
+          "mimeType": "text/csv"
+        }
+      },
+      "position": [2300, 350]
+    },
+    {
+      "id": "generateReport",
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "// Generate a summary report\nconst item = $input.first().json;\nconst totalCandidates = item.evaluationResults.length;\nconst recommendedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Hire').length;\nconst considerCandidates = item.evaluationResults.filter(r => r.recommendation === 'Consider').length;\nconst rejectedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Reject').length;\n\nconst topCandidates = [...item.evaluationResults]\n  .sort((a, b) => b.scores.overall - a.scores.overall)\n  .slice(0, 3);\n\nitem.reportData = {\n  jobPosition: item.jobPosition,\n  totalCandidates,\n  recommendedCandidates,\n  considerCandidates,\n  rejectedCandidates,\n  topCandidates: topCandidates.map(c => ({\n    name: c.candidateName,\n    overallScore: c.scores.overall,\n    recommendation: c.recommendation\n  })),\n  allCandidates: item.evaluationResults.map(c => ({\n    name: c.candidateName,\n    skillsScore: c.scores.skills,\n    experienceScore: c.scores.experience,\n    educationScore: c.scores.education,\n    overallScore: c.scores.overall,\n    recommendation: c.recommendation\n  }))\n};\n\nreturn $input;"
+      },
+      "position": [2500, 350]
+    },
+    {
+      "id": "googleSheetsOutput",
+      "name": "Google Sheets Output",
+      "type": "n8n-nodes-base.googleSheets",
+      "parameters": {
+        "operation": "append",
+        "sheetId": "{{$env.RESULTS_GOOGLE_SHEET_ID}}",
+        "range": "A:G",
+        "options": {
+          "valueInputMode": "RAW"
+        },
+        "valueInputMode": "RAW"
+      },
+      "position": [2700, 350]
+    }
+  ],
+  "connections": {
+    "googleSheetsTrigger": {
+      "main": [
+        [
+          {
+            "node": "setJobRequirements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "setJobRequirements": {
+      "main": [
+        [
+          {
+            "node": "initializeVariables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initializeVariables": {
+      "main": [
+        [
+          {
+            "node": "loopThroughCandidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "loopThroughCandidate": {
+      "main": [
+        [
+          {
+            "node": "prepareCandidateData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepareCandidateData": {
+      "main": [
+        [
+          {
+            "node": "googleDrive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "googleDrive": {
+      "main": [
+        [
+          {
+            "node": "resumeExtraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resumeExtraction": {
+      "main": [
+        [
+          {
+            "node": "googleGeminiEvaluateCandidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "googleGeminiEvaluateCandidate": {
+      "main": [
+        [
+          {
+            "node": "evaluationJSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "evaluationJSON": {
+      "main": [
+        [
+          {
+            "node": "addToEvaluations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "addToEvaluations": {
+      "main": [
+        [
+          {
+            "node": "isProcessingComplete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "isProcessingComplete": {
+      "main": [
+        [
+          {
+            "node": "continueLoop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "csvExport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "continueLoop": {
+      "main": [
+        [
+          {
+            "node": "loopThroughCandidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "csvExport": {
+      "main": [
+        [
+          {
+            "node": "saveFile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "saveFile": {
+      "main": [
+        [
+          {
+            "node": "generateReport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generateReport": {
+      "main": [
+        [
+          {
+            "node": "googleSheetsOutput",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
