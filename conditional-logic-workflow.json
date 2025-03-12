@@ -1,0 +1,157 @@
+{
+  "name": "Conditional Logic",
+  "nodes": [
+    {
+      "parameters": {
+        "functionName": "conditionalLogic"
+      },
+      "type": "n8n-nodes-base.functionTrigger",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "id": "function-trigger",
+      "name": "Function Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract parameters from the function call\nconst params = $input.first().json;\n\n// Default parameters if not provided\nconst condition = params.condition || false;\nconst qualifiedPath = params.qualifiedPath || 'qualified';\nconst unqualifiedPath = params.unqualifiedPath || 'unqualified';\nconst candidateData = params.candidateData || {};\n\n// Evaluate the condition if it's a string (expression)\nlet conditionResult = condition;\nif (typeof condition === 'string') {\n  try {\n    // Try to evaluate the condition as a JavaScript expression\n    // This is a simplified approach - in production, you'd want more security\n    conditionResult = eval(condition);\n  } catch (error) {\n    conditionResult = false;\n  }\n}\n\n// Return the processed parameters and evaluation result\nreturn {\n  json: {\n    conditionResult,\n    qualifiedPath,\n    unqualifiedPath,\n    candidateData,\n    path: conditionResult ? qualifiedPath : unqualifiedPath,\n    status: 'evaluated'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "evaluate-condition",
+      "name": "Evaluate Condition"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.conditionResult }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "id": "condition-branch",
+      "name": "Condition Branch"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process qualified candidate\nconst item = $input.first().json;\n\n// Add qualified status and timestamp\nitem.candidateData.status = 'qualified';\nitem.candidateData.qualifiedAt = new Date().toISOString();\nitem.candidateData.qualificationNotes = 'Candidate meets the minimum requirements for the position';\n\n// Calculate priority score (example logic)\nconst overallScore = item.candidateData.evaluation?.overallScore || 0;\nitem.candidateData.priorityScore = Math.min(100, overallScore * 1.67); // Scale to 0-100\n\n// Add next steps\nitem.candidateData.nextSteps = [\n  'Schedule technical interview',\n  'Prepare interview questions based on resume strengths',\n  'Assign pre-interview assessment'\n];\n\nreturn {\n  json: {\n    path: item.qualifiedPath,\n    result: 'qualified',\n    candidateData: item.candidateData,\n    message: 'Candidate has been marked as qualified'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "id": "process-qualified",
+      "name": "Process Qualified"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process unqualified candidate\nconst item = $input.first().json;\n\n// Add unqualified status and timestamp\nitem.candidateData.status = 'unqualified';\nitem.candidateData.unqualifiedAt = new Date().toISOString();\n\n// Determine rejection reason based on scores\nconst evaluation = item.candidateData.evaluation || {};\nconst scores = evaluation.scores || {};\n\nlet rejectionReasons = [];\n\n// Check each score category (assuming scores are on a 0-10 scale)\nif ((scores.skillsMatch?.score || 0) < 5) {\n  rejectionReasons.push('Insufficient skills match for the position');\n}\n\nif ((scores.experienceRelevance?.score || 0) < 5) {\n  rejectionReasons.push('Insufficient relevant experience');\n}\n\nif ((scores.educationFit?.score || 0) < 5) {\n  rejectionReasons.push('Education does not meet requirements');\n}\n\nif ((scores.imercfyFit?.score || 0) < 5) {\n  rejectionReasons.push('Not a strong fit for Imercfy culture');\n}\n\nif ((scores.motivation?.score || 0) < 5) {\n  rejectionReasons.push('Insufficient motivation/interest in the position');\n}\n\n// If no specific reasons, add a general one\nif (rejectionReasons.length === 0) {\n  rejectionReasons.push('Overall qualifications do not meet minimum requirements');\n}\n\nitem.candidateData.rejectionReasons = rejectionReasons;\n\n// Add feedback for improvement\nitem.candidateData.feedbackForImprovement = 'Thank you for your interest in Imercfy. While we cannot proceed with your application at this time, we encourage you to develop skills in ' + \n  (scores.missingSkills?.join(', ') || 'the required areas') + \n  ' and consider applying for future opportunities.';\n\nreturn {\n  json: {\n    path: item.unqualifiedPath,\n    result: 'unqualified',\n    candidateData: item.candidateData,\n    message: 'Candidate has been marked as unqualified',\n    rejectionReasons: rejectionReasons\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ],
+      "id": "process-unqualified",
+      "name": "Process Unqualified"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine results from both paths\nconst results = [];\n\n// Add data from the first input if it exists\nif ($input.item) {\n  results.push($input.item);\n}\n\n// Add data from the second input if it exists\nif ($input.second) {\n  results.push($input.second);\n}\n\n// Return the result from whichever path was taken\nreturn {\n  json: results[0].json\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "combine-results",
+      "name": "Combine Results"
+    }
+  ],
+  "connections": {
+    "Function Trigger": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Condition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Condition": {
+      "main": [
+        [
+          {
+            "node": "Condition Branch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Condition Branch": {
+      "main": [
+        [
+          {
+            "node": "Process Qualified",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Unqualified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Qualified": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Unqualified": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
