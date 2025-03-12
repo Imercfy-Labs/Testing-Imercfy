@@ -1,0 +1,542 @@
+{
+  "name": "Candidate Selection",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1w6VxHIVRhc4FHLx-oC63lUd710jqARYSd2cHspODUSA",
+          "mode": "list"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        -3080,
+        480
+      ],
+      "id": "google-sheets-trigger",
+      "name": "Google Sheets Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set job requirements based on the job position\nconst jobPosition = $input.first().json.jobPosition;\n\nlet requirements = {};\nif (jobPosition === 'Game Development Intern') {\n  requirements = {\n    skills: ['Unity/Unreal Engine', 'C#/C++', 'Game Design', '3D Development', '3D Modeling'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in developing interactive 3D applications and games',\n      'Create and implement game mechanics and features',\n      'Collaborate with designers and artists to implement visual assets',\n      'Optimize performance for target platforms',\n      'Document code and development processes'\n    ]\n  };\n} else if (jobPosition === 'AI-enabled Developer Intern') {\n  requirements = {\n    skills: ['Python', 'Machine Learning', 'TensorFlow/PyTorch', 'Natural Language Processing', 'Data Structures'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in developing AI-powered applications and features',\n      'Implement machine learning models and algorithms',\n      'Process and analyze data sets for training AI models',\n      'Integrate AI capabilities into existing software systems',\n      'Document AI models and processes'\n    ]\n  };\n} else if (jobPosition === 'Data Engineer Intern') {\n  requirements = {\n    skills: ['SQL', 'Python', 'Data Warehousing', 'ETL Processes', 'Database Design'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in building and maintaining data pipelines',\n      'Help optimize database structures and queries',\n      'Participate in data integration and transformation projects',\n      'Support data quality assurance processes',\n      'Document data flows and technical specifications'\n    ]\n  };\n} else {\n  // Default requirements for general internship\n  requirements = {\n    skills: ['Communication', 'Problem Solving', 'Teamwork', 'Basic Programming'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Support team projects and initiatives',\n      'Learn industry-specific tools and technologies',\n      'Assist with daily operational tasks',\n      'Participate in team meetings and discussions',\n      'Document work and contribute to knowledge base'\n    ]\n  };\n}\n\n// Add additional common requirements\nrequirements.additionalInfo = {\n  locationType: 'Remote/Hybrid/On-site',\n  duration: '3-6 months',\n  compensation: 'Competitive stipend based on skills and performance',\n  learningOpportunities: 'Mentorship from industry experts, hands-on project experience'\n};\n\n$input.first().json.requirements = requirements;\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2860,
+        480
+      ],
+      "id": "job-requirement",
+      "name": "Job Requirement"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize variables for candidate evaluation\nconst item = $input.first().json;\nitem.candidateScore = 0;\nitem.evaluationResults = [];\nitem.processedCandidates = 0;\nitem.totalCandidates = item.candidates ? item.candidates.length : 0;\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2640,
+        480
+      ],
+      "id": "initialize-variables",
+      "name": "Initialize Variables"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": true
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        -2420,
+        480
+      ],
+      "id": "loop-through-candidate",
+      "name": "Loop Through Candidate"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare candidate data for evaluation\nconst item = $input.first().json;\nconst candidateIndex = item.processedCandidates;\nconst candidate = item.candidates[candidateIndex];\n\nitem.currentCandidate = candidate;\nitem.processedCandidates += 1;\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2200,
+        480
+      ],
+      "id": "prepare-candidate-data",
+      "name": "Prepare Candidate Data"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": "={{ $json.currentCandidate.resumeFileId }}"
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 2,
+      "position": [
+        -1980,
+        480
+      ],
+      "id": "google-drive",
+      "name": "Google Drive"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract text from resume\nconst item = $input.first().json;\nitem.resumeText = item.data.toString('utf-8');\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1760,
+        480
+      ],
+      "id": "resume-extraction",
+      "name": "Resume Extraction"
+    },
+    {
+      "parameters": {
+        "memoryKey": "chat_history",
+        "returnMessages": true,
+        "inputKey": "input",
+        "outputKey": "output",
+        "windowSize": 5,
+        "memoryType": "windowBuffer",
+        "humanPrefix": "Human",
+        "aiPrefix": "AI"
+      },
+      "type": "n8n-nodes-base.aiMemory",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        300
+      ],
+      "id": "window-buffer-memory",
+      "name": "Window Buffer Memory"
+    },
+    {
+      "parameters": {
+        "model": "mistral-large-latest",
+        "options": {
+          "temperature": 0.2,
+          "maxTokens": 4000
+        }
+      },
+      "type": "n8n-nodes-base.mistralAi",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        120
+      ],
+      "id": "mistral-cloud-chat-model",
+      "name": "Mistral Cloud Chat Model"
+    },
+    {
+      "parameters": {
+        "workflowId": "spreadsheet-operations",
+        "options": {
+          "operation": "update",
+          "spreadsheetId": "{{ $env.RESULTS_GOOGLE_SHEET_ID }}",
+          "sheetName": "Evaluations",
+          "range": "A:Z",
+          "data": "{{ $json.evaluationResults }}"
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        480
+      ],
+      "id": "spreadsheet-operations-tool",
+      "name": "Spreadsheet Operations Tool"
+    },
+    {
+      "parameters": {
+        "workflowId": "conditional-logic",
+        "options": {
+          "condition": "{{ $json.scores.overallScore >= 40 }}",
+          "qualifiedPath": "qualified",
+          "unqualifiedPath": "unqualified",
+          "candidateData": "{{ $json.currentCandidate }}"
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [
+        -1540,
+        660
+      ],
+      "id": "conditional-logic-tool",
+      "name": "Conditional Logic Tool"
+    },
+    {
+      "parameters": {
+        "prompt": "You are an expert HR Assistant specialized in candidate evaluation for Imercfy. Your task is to analyze candidate resumes against job requirements and provide structured evaluations.\n\nINSTRUCTIONS:\n1. Carefully analyze the candidate's resume text provided.\n2. Compare the candidate's qualifications against the specific job requirements.\n3. Evaluate the candidate on the following criteria:\n   - Skills Match: How well do the candidate's skills align with required skills (0-10)\n   - Experience Relevance: How relevant is their experience to the position (0-10)\n   - Education Fit: How well does their education match requirements (0-10)\n   - Overall Potential: Overall assessment of candidate potential (0-10)\n   - Imercfy Fit: How well the candidate would fit with Imercfy's culture and goals (0-10)\n   - Motivation: How genuine and aligned their interest in Imercfy appears to be (0-10)\n\n4. For each evaluation criterion:\n   - Provide a numerical score (0-10)\n   - Include a brief justification (1-2 sentences)\n   - Highlight specific strengths and weaknesses\n\n5. For the Imercfy-specific criteria, analyze:\n   - \"Why do you think that you would be a strong candidate at Imercfy?\"\n   - \"Why are you interested in interning with Imercfy?\"\n\n6. Return your evaluation in the following JSON format:\n```json\n{\n  \"candidateName\": \"{{candidate name from resume}}\",\n  \"position\": \"{{job position}}\",\n  \"evaluationDate\": \"{{current date}}\",\n  \"scores\": {\n    \"skillsMatch\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"matchedSkills\": [\"skill1\", \"skill2\"],\n      \"missingSkills\": [\"skill3\", \"skill4\"]\n    },\n    \"experienceRelevance\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"relevantExperience\": \"Summary of relevant experience\",\n      \"gapsOrConcerns\": \"Any notable gaps\"\n    },\n    \"educationFit\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"relevantEducation\": \"Summary of relevant education\",\n      \"additionalCertifications\": \"Any notable certifications\"\n    },\n    \"overallPotential\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"strengths\": [\"strength1\", \"strength2\"],\n      \"areasForImprovement\": [\"area1\", \"area2\"]\n    },\n    \"imercfyFit\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"strengthsAsCandidate\": \"Analysis of why they would be a strong candidate at Imercfy\",\n      \"alignmentWithCompany\": \"How their skills and goals align with Imercfy's mission\"\n    },\n    \"motivation\": {\n      \"score\": 0-10,\n      \"justification\": \"Brief explanation of score\",\n      \"interestInImercfy\": \"Analysis of why they are interested in interning with Imercfy\",\n      \"genuineness\": \"Assessment of how genuine their interest appears to be\"\n    }\n  },\n  \"overallScore\": 0-60,\n  \"recommendation\": \"Recommend/Do Not Recommend/Consider\",\n  \"additionalNotes\": \"Any other observations or comments\"\n}\n```\n\nRemember to be objective, fair, and thorough in your evaluation. Focus on the candidate's qualifications as they relate to the specific job requirements provided. Pay special attention to their stated reasons for wanting to join Imercfy and assess whether they demonstrate genuine interest and understanding of the company.\n\nHere is the job position: {{ $json.jobPosition }}\n\nHere are the job requirements:\n{{ $json.requirements | json }}\n\nHere is the candidate's resume:\n{{ $json.resumeText }}"
+      },
+      "type": "n8n-nodes-base.aiAgent",
+      "typeVersion": 1,
+      "position": [
+        -1320,
+        480
+      ],
+      "id": "ai-agent",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse evaluation results\nconst item = $input.first().json;\nlet evaluation;\n\ntry {\n  // Try to parse the response as JSON\n  evaluation = JSON.parse(item.response);\n} catch (error) {\n  // If parsing fails, extract JSON from the text response\n  const jsonMatch = item.response.match(/```json\\n([\\s\\S]*?)\\n```/);\n  if (jsonMatch && jsonMatch[1]) {\n    try {\n      evaluation = JSON.parse(jsonMatch[1]);\n    } catch (e) {\n      // If still fails, create a basic structure\n      evaluation = {\n        candidateName: item.currentCandidate.name,\n        position: item.jobPosition,\n        evaluationDate: new Date().toISOString().split('T')[0],\n        scores: {\n          skillsMatch: { score: 0 },\n          experienceRelevance: { score: 0 },\n          educationFit: { score: 0 },\n          overallPotential: { score: 0 },\n          imercfyFit: { score: 0 },\n          motivation: { score: 0 }\n        },\n        overallScore: 0,\n        recommendation: 'Error in evaluation',\n        additionalNotes: 'Failed to parse AI response: ' + error.message\n      };\n    }\n  }\n}\n\nitem.currentCandidate.evaluation = evaluation;\nitem.evaluationResults.push({\n  candidateName: item.currentCandidate.name,\n  position: item.jobPosition,\n  evaluationDate: evaluation.evaluationDate,\n  scores: {\n    skillsMatch: evaluation.scores.skillsMatch.score,\n    experienceRelevance: evaluation.scores.experienceRelevance.score,\n    educationFit: evaluation.scores.educationFit.score,\n    overallPotential: evaluation.scores.overallPotential.score,\n    imercfyFit: evaluation.scores.imercfyFit.score,\n    motivation: evaluation.scores.motivation.score\n  },\n  overallScore: evaluation.overallScore,\n  recommendation: evaluation.recommendation,\n  details: evaluation\n});\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1100,
+        480
+      ],
+      "id": "evaluation-json",
+      "name": "Evaluation JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add current evaluation to the list\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -880,
+        480
+      ],
+      "id": "add-to-evaluations",
+      "name": "Add To Evaluations"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.processedCandidates }}",
+              "operation": "equal",
+              "value2": "={{ $json.totalCandidates }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -660,
+        480
+      ],
+      "id": "is-processing-complete",
+      "name": "Is Processing Complete?"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        380
+      ],
+      "id": "continue-loop",
+      "name": "Continue Loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for CSV export\nconst item = $input.first().json;\nconst csvData = item.evaluationResults.map(result => ({\n  'Candidate Name': result.candidateName,\n  'Position': result.position,\n  'Evaluation Date': result.evaluationDate,\n  'Skills Score': result.scores.skillsMatch,\n  'Experience Score': result.scores.experienceRelevance,\n  'Education Score': result.scores.educationFit,\n  'Overall Potential': result.scores.overallPotential,\n  'Imercfy Fit': result.scores.imercfyFit,\n  'Motivation': result.scores.motivation,\n  'Overall Score': result.overallScore,\n  'Recommendation': result.recommendation\n}));\n\nitem.csvData = csvData;\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -440,
+        580
+      ],
+      "id": "csv-export",
+      "name": "CSV Export"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "name": "={{ 'Candidate_Evaluation_' + $now.format('YYYY-MM-DD') + '.csv' }}",
+        "folderId": "{{$env.GOOGLE_DRIVE_FOLDER_ID}}",
+        "options": {
+          "mimeType": "text/csv"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        580
+      ],
+      "id": "save-file",
+      "name": "Save File"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate a summary report\nconst item = $input.first().json;\nconst totalCandidates = item.evaluationResults.length;\nconst recommendedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Recommend').length;\nconst considerCandidates = item.evaluationResults.filter(r => r.recommendation === 'Consider').length;\nconst notRecommendedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Do Not Recommend').length;\n\nconst topCandidates = [...item.evaluationResults]\n  .sort((a, b) => b.overallScore - a.overallScore)\n  .slice(0, 3);\n\nitem.reportData = {\n  jobPosition: item.jobPosition,\n  totalCandidates,\n  recommendedCandidates,\n  considerCandidates,\n  notRecommendedCandidates,\n  topCandidates: topCandidates.map(c => ({\n    name: c.candidateName,\n    overallScore: c.overallScore,\n    skillsScore: c.scores.skillsMatch,\n    experienceScore: c.scores.experienceRelevance,\n    educationScore: c.scores.educationFit,\n    imercfyFitScore: c.scores.imercfyFit,\n    motivationScore: c.scores.motivation,\n    recommendation: c.recommendation\n  })),\n  allCandidates: item.evaluationResults.map(c => ({\n    name: c.candidateName,\n    skillsScore: c.scores.skillsMatch,\n    experienceScore: c.scores.experienceRelevance,\n    educationScore: c.scores.educationFit,\n    overallPotential: c.scores.overallPotential,\n    imercfyFit: c.scores.imercfyFit,\n    motivation: c.scores.motivation,\n    overallScore: c.overallScore,\n    recommendation: c.recommendation\n  }))\n};\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        580
+      ],
+      "id": "generate-report",
+      "name": "Generate Report"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "{{$env.RESULTS_GOOGLE_SHEET_ID}}",
+        "range": "A:Z",
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        220,
+        580
+      ],
+      "id": "google-sheets-output",
+      "name": "Google Sheets Output"
+    }
+  ],
+  "connections": {
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Job Requirement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Requirement": {
+      "main": [
+        [
+          {
+            "node": "Initialize Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Variables": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Candidate": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Prepare Candidate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Candidate Data": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Resume Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Extraction": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mistral Cloud Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spreadsheet Operations Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conditional Logic Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Evaluation JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluation JSON": {
+      "main": [
+        [
+          {
+            "node": "Add To Evaluations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add To Evaluations": {
+      "main": [
+        [
+          {
+            "node": "Is Processing Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Processing Complete?": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CSV Export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV Export": {
+      "main": [
+        [
+          {
+            "node": "Save File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save File": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
