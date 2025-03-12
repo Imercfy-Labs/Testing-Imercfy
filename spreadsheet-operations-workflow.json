@@ -1,0 +1,172 @@
+{
+  "name": "Spreadsheet Operations",
+  "nodes": [
+    {
+      "parameters": {
+        "functionName": "spreadsheetOperations"
+      },
+      "type": "n8n-nodes-base.functionTrigger",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "id": "function-trigger",
+      "name": "Function Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract parameters from the function call\nconst params = $input.first().json;\n\n// Default parameters if not provided\nconst operation = params.operation || 'update';\nconst spreadsheetId = params.spreadsheetId || '';\nconst sheetName = params.sheetName || 'Sheet1';\nconst range = params.range || 'A:Z';\nconst data = params.data || [];\n\n// Prepare the data for the operation\nlet processedData;\n\nif (Array.isArray(data)) {\n  // If data is already an array, use it directly\n  processedData = data;\n} else if (typeof data === 'object') {\n  // If data is an object, convert it to an array with a single item\n  processedData = [data];\n} else {\n  // If data is something else, create a simple array\n  processedData = [{value: data}];\n}\n\n// Return the processed parameters\nreturn {\n  json: {\n    operation,\n    spreadsheetId,\n    sheetName,\n    range,\n    data: processedData,\n    status: 'ready'\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "process-parameters",
+      "name": "Process Parameters"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operation }}",
+              "operation": "equals",
+              "value2": "update"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "id": "operation-switch",
+      "name": "Operation Switch"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": "={{ $json.spreadsheetId }}",
+        "sheetName": "={{ $json.sheetName }}",
+        "range": "={{ $json.range }}",
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        900,
+        200
+      ],
+      "id": "update-sheet",
+      "name": "Update Sheet"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": "={{ $json.spreadsheetId }}",
+        "sheetName": "={{ $json.sheetName }}",
+        "range": "={{ $json.range }}",
+        "options": {
+          "valueInputMode": "RAW"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 2,
+      "position": [
+        900,
+        400
+      ],
+      "id": "append-to-sheet",
+      "name": "Append to Sheet"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Combine results from both operations\nconst results = [];\n\n// Add data from the first input if it exists\nif ($input.item) {\n  results.push($input.item);\n}\n\n// Add data from the second input if it exists\nif ($input.second) {\n  results.push($input.second);\n}\n\n// Return success response\nreturn {\n  json: {\n    success: true,\n    operation: results[0].json.operation,\n    message: `Successfully performed ${results[0].json.operation} operation on spreadsheet`,\n    results: results\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "combine-results",
+      "name": "Combine Results"
+    }
+  ],
+  "connections": {
+    "Function Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Parameters": {
+      "main": [
+        [
+          {
+            "node": "Operation Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Operation Switch": {
+      "main": [
+        [
+          {
+            "node": "Update Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Sheet": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Combine Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
