@@ -1,0 +1,566 @@
+{
+  "name": "Candidate Selection",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1w6VxHIVRhc4FHLx-oC63lUd710jqARYSd2cHspODUSA",
+          "mode": "list",
+          "cachedResultName": "Internship Application (Responses)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w6VxHIVRhc4FHLx-oC63lUd710jqARYSd2cHspODUSA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1932989510,
+          "mode": "list",
+          "cachedResultName": "Form responses 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w6VxHIVRhc4FHLx-oC63lUd710jqARYSd2cHspODUSA/edit#gid=1932989510"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "id": "040b1ce5-1b24-4b09-bed6-e95288b94a75",
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "position": [
+        -3080,
+        480
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "2ich7NGt7UaLnjns",
+          "name": "Google Sheets Trigger account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": true
+        }
+      },
+      "id": "f9046e24-d99a-42e3-9e00-2fd069360d44",
+      "name": "Loop Through Candidate",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -2420,
+        480
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "Submit your resume (File responses)",
+        "filter": {
+          "folderId": {
+            "mode": "list",
+            "value": "root",
+            "cachedResultName": "/ (Root folder)"
+          }
+        },
+        "options": {}
+      },
+      "id": "61b2f502-1ca6-492f-b391-547d0ed41de9",
+      "name": "Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        -1900,
+        500
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "VpM8tmCDz4QOEsJQ",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "06b5424a-6155-461a-ab05-8ff4eb0f10fe",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f2d463a9-a1f5-4397-95d7-ab03874441bb",
+      "name": "Is Processing Complete?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -440,
+        500
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {},
+      "id": "63e1a6fc-5e95-46c8-9a4a-6bee52ef3cbd",
+      "name": "Continue Loop",
+      "type": "n8n-nodes-base.noOp",
+      "position": [
+        80,
+        200
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "name": "={{ 'Candidate_Evaluation_' + $now.format('YYYY-MM-DD') + '.csv' }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": "{{$env.GOOGLE_DRIVE_FOLDER_ID}}",
+        "options": {}
+      },
+      "id": "2be3d126-372f-40de-ad3f-535a9cebfd66",
+      "name": "Save File",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        280,
+        720
+      ],
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "id": "182dafa0-970a-4982-9172-ad36f9285d35",
+      "name": "Google Sheets Output",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        660,
+        720
+      ],
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI hiring assistant responsible for evaluating candidate data from resumes. Your task is to:\n\n1. Review candidate information including skills, experience, education, and job requirements\n2. Assess candidate suitability using the following criteria:\n   - Technical skills match (0-10)\n   - Experience relevance (0-10)\n   - Education fit (0-10)\n   - Communication skills (0-10)\n   - Overall potential (0-10)\n3. Provide a brief justification for each score (1-2 sentences)\n4. Make a recommendation: \"Strong Match\", \"Potential Match\", or \"Not Recommended\"\n5. Format your response in JSON with the following structure:\n   {\n     \"candidateName\": \"{{$node[\"Prepare Candidate Data\"].json[\"name\"]}}\",\n     \"technicalSkills\": {\"score\": X, \"justification\": \"...\"},\n     \"experienceRelevance\": {\"score\": X, \"justification\": \"...\"},\n     \"educationFit\": {\"score\": X, \"justification\": \"...\"},\n     \"communicationSkills\": {\"score\": X, \"justification\": \"...\"},\n     \"overallPotential\": {\"score\": X, \"justification\": \"...\"},\n     \"totalScore\": X,\n     \"recommendation\": \"...\",\n     \"additionalNotes\": \"...\"\n   }\n\nRemember to be objective and focus on job-relevant qualifications. Do not consider factors like age, gender, nationality, or other personal characteristics in your evaluation. {{ $json.item }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1420,
+        500
+      ],
+      "id": "9677d3da-71ab-4731-aaa3-865e275b711e",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatMistralCloud",
+      "typeVersion": 1,
+      "position": [
+        -1680,
+        1040
+      ],
+      "id": "118bd876-081d-4edd-a48e-f4e5797bda84",
+      "name": "Mistral Cloud Chat Model1",
+      "credentials": {
+        "mistralCloudApi": {
+          "id": "joIfCB585ojtRWEK",
+          "name": "Mistral Cloud account"
+        }
+      },
+      "notes": "You are an AI hiring assistant responsible for evaluating candidate data from resumes. Your task is to:\n\n1. Review candidate information including skills, experience, education, and job requirements\n2. Assess candidate suitability using the following criteria:\n   - Technical skills match (0-10)\n   - Experience relevance (0-10)\n   - Education fit (0-10)\n   - Communication skills (0-10)\n   - Overall potential (0-10)\n3. Provide a brief justification for each score (1-2 sentences)\n4. Make a recommendation: \"Strong Match\", \"Potential Match\", or \"Not Recommended\"\n5. Format your response in JSON with the following structure:\n   {\n     \"candidateName\": \"{{$node[\"Prepare Candidate Data\"].json[\"name\"]}}\",\n     \"technicalSkills\": {\"score\": X, \"justification\": \"...\"},\n     \"experienceRelevance\": {\"score\": X, \"justification\": \"...\"},\n     \"educationFit\": {\"score\": X, \"justification\": \"...\"},\n     \"communicationSkills\": {\"score\": X, \"justification\": \"...\"},\n     \"overallPotential\": {\"score\": X, \"justification\": \"...\"},\n     \"totalScore\": X,\n     \"recommendation\": \"...\",\n     \"additionalNotes\": \"...\"\n   }\n\nRemember to be objective and focus on job-relevant qualifications. Do not consider factors like age, gender, nationality, or other personal characteristics in your evaluation."
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -1380,
+        800
+      ],
+      "id": "117f6cdd-6b03-41c6-b46f-d4d92ba39228",
+      "name": "Window Buffer Memory",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "95dpioe0cDOBr7Ko"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2,
+      "position": [
+        -1020,
+        820
+      ],
+      "id": "b01ef9b1-1483-4485-a085-85c049eda8fd",
+      "name": "Call n8n Workflow Tool",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidates = $input.all().map((item) => item.json);\nconst preparedCandidates = candidates.map((candidate) => {\n  const {\n    Email,\n    Name,\n    \"Phone number\": phoneNumber,\n    LinkedIn,\n    \"Which position(s) are you interested in?\": position,\n    \"Where do you attend college/University?\": college,\n    \"What are your majors or specializations?\": majors,\n    \"Why do you think that you would be a strong candidate at Imercfy?\":\n      candidateStrength,\n    \"What is your preferred start date for this internship?\": startDate,\n    \"Why are you interested in interning with Imercfy?\": interest,\n    \"Submit your resume\": resume,\n  } = candidate;\n  return {\n    Email,\n    Name,\n    phoneNumber,\n    LinkedIn,\n    position,\n    college,\n    majors,\n    candidateStrength,\n    startDate,\n    interest,\n    resume,\n  };\n});\n\nreturn preparedCandidates;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2140,
+        500
+      ],
+      "id": "5fe7dead-f88c-4961-8e48-d371cc01a1ae",
+      "name": "Prepare Candidate Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract text from resume\nconst item = $input.first().json;\nif (item.data) {\n  item.resumeText = item.data.toString('utf-8');\n}\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1680,
+        500
+      ],
+      "id": "59feb903-2ae2-4aee-9341-4c304b7ca069",
+      "name": "Resume Extraction"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse evaluation results\nconst item = $input.first().json;\nif (!item.response) {\n  throw new Error('Response is undefined');\n}\n\nlet evaluation;\ntry {\n  evaluation = JSON.parse(item.response);\n} catch (e) {\n  throw new Error('Response is not valid JSON');\n}\n\nif (!evaluation || typeof evaluation !== 'object') {\n   throw new Error('Parsed evaluation is not an object');\n}\n\nitem.currentCandidate.evaluation = evaluation;\nitem.evaluationResults.push({\n  candidateName: item.currentCandidate.name,\n  scores: {\n    skills: evaluation.skillsMatch,\n    experience: evaluation.experienceMatch,\n    education: evaluation.educationMatch,\n    overall: evaluation.overallFit\n  },\n  recommendation: evaluation.finalRecommendation\n});\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -920,
+        500
+      ],
+      "id": "4eb6b2c4-0819-4fc0-b517-5d7477d7d8eb",
+      "name": "Evaluation JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add current evaluation to the list\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -700,
+        500
+      ],
+      "id": "924819cb-744f-4a3c-80a7-7044c41f5632",
+      "name": "Add To Evaluations"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare data for CSV export\nconst item = $input.first().json;\nconst csvData = item.evaluationResults.map(result => ({\n  'Candidate Name': result.candidateName,\n  'Skills Score': result.scores.skills,\n  'Experience Score': result.scores.experience,\n  'Education Score': result.scores.education,\n  'Overall Score': result.scores.overall,\n  'Recommendation': result.recommendation\n}));\n\nitem.csvData = csvData;\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        100,
+        720
+      ],
+      "id": "d2407350-f42c-4f2e-93b8-6e812b34bb83",
+      "name": "CSV Export"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate a summary report\nconst item = $input.first().json;\nconst totalCandidates = item.evaluationResults.length;\nconst recommendedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Hire').length;\nconst considerCandidates = item.evaluationResults.filter(r => r.recommendation === 'Consider').length;\nconst rejectedCandidates = item.evaluationResults.filter(r => r.recommendation === 'Reject').length;\n\nconst topCandidates = [...item.evaluationResults]\n  .sort((a, b) => b.scores.overall - a.scores.overall)\n  .slice(0, 3);\n\nitem.reportData = {\n  jobPosition: item.jobPosition,\n  totalCandidates,\n  recommendedCandidates,\n  considerCandidates,\n  rejectedCandidates,\n  topCandidates: topCandidates.map(c => ({\n    name: c.candidateName,\n    overallScore: c.scores.overall,\n    recommendation: c.recommendation\n  })),\n  allCandidates: item.evaluationResults.map(c => ({\n    name: c.candidateName,\n    skillsScore: c.scores.skills,\n    experienceScore: c.scores.experience,\n    educationScore: c.scores.education,\n    overallScore: c.scores.overall,\n    recommendation: c.recommendation\n  }))\n};\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        720
+      ],
+      "id": "3cd7ef31-dca5-4d17-964a-d5a4194d96cf",
+      "name": "Generate Report"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Set job requirements based on the job position\nconst jobPosition = $input.first().json.jobPosition;\nlet requirements = {};\n\nif (jobPosition === 'Unity/Unreal Developer Intern') {\n  requirements = {\n    skills: ['Unity', 'Unreal Engine', 'C#', 'C++', 'Game Development', '3D Modeling'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in developing interactive 3D applications and games',\n      'Create and implement game mechanics and features',\n      'Collaborate with designers and artists to implement visual assets',\n      'Optimize performance for target platforms',\n      'Document code and development processes'\n    ]\n  };\n} else if (jobPosition === 'AI-enabled Developer Intern') {\n  requirements = {\n    skills: ['Python', 'Machine Learning', 'TensorFlow/PyTorch', 'Natural Language Processing', 'Data Structures'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in developing AI-powered applications and features',\n      'Implement machine learning models and algorithms',\n      'Process and analyze data sets for training AI models',\n      'Integrate AI capabilities into existing software systems',\n      'Document AI models and processes'\n    ]\n  };\n} else if (jobPosition === 'Data Engineer Intern') {\n  requirements = {\n    skills: ['SQL', 'Python', 'Data Warehousing', 'ETL Processes', 'Database Design'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Assist in building and maintaining data pipelines',\n      'Help optimize database structures and queries',\n      'Participate in data integration and transformation projects',\n      'Support data quality assurance processes',\n      'Document data flows and technical specifications'\n    ]\n  };\n} else {\n  // Default requirements for general internship\n  requirements = {\n    skills: ['Communication', 'Problem Solving', 'Teamwork', 'Basic Programming'],\n    experience: 'Fresher or up to 2 years',\n    education: 'B.Tech, BE, BSc, MBA',\n    responsibilities: [\n      'Support team projects and initiatives',\n      'Learn industry-specific tools and technologies',\n      'Assist with daily operational tasks',\n      'Participate in team meetings and discussions',\n      'Document work and contribute to knowledge base'\n    ]\n  };\n}\n\n// Add additional common requirements\nrequirements.additionalInfo = {\n  locationType: 'Remote/Hybrid/On-site',\n  duration: '3-6 months',\n  compensation: 'Competitive stipend based on skills and performance',\n  learningOpportunities: 'Mentorship from industry experts, hands-on project experience'\n};\n\n$input.first().json.requirements = requirements;\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2860,
+        480
+      ],
+      "id": "30c48e36-ead8-477e-a865-0f1388a67066",
+      "name": "Job Requirement"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize variables for candidate evaluation\nconst item = $input.first().json;\nitem.candidateScore = 0;\nitem.evaluationResults = [];\nitem.processedCandidates = 0;\nitem.totalCandidates = item.candidates ? item.candidates.length : 0;\n\nreturn $input;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2640,
+        480
+      ],
+      "id": "714bd3a6-ab4f-46a9-8fd0-08fb5c77ab7d",
+      "name": "Initialize Variables"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Mistral Cloud Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call n8n Workflow Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Evaluation JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Processing Complete?": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CSV Export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save File": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Job Requirement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Resume Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Through Candidate": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Prepare Candidate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Candidate Data": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resume Extraction": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluation JSON": {
+      "main": [
+        [
+          {
+            "node": "Add To Evaluations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add To Evaluations": {
+      "main": [
+        [
+          {
+            "node": "Is Processing Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CSV Export": {
+      "main": [
+        [
+          {
+            "node": "Save File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Job Requirement": {
+      "main": [
+        [
+          {
+            "node": "Initialize Variables",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Variables": {
+      "main": [
+        [
+          {
+            "node": "Loop Through Candidate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "55ba9bf3-b5a1-42c2-8a68-a0bb5e3c69cf",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "84efee3da8c7ff93d7b0e28d628df3952297d7d0d8c63e083f81f7b3f7593a64"
+  },
+  "id": "95dpioe0cDOBr7Ko",
+  "tags": []
+}
